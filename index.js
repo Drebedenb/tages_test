@@ -1,51 +1,71 @@
 const fs = require('fs');
-const es = require('event-stream');
-const {pipeline} = require("stream");
-const {mergeSortedFiles} = require("./all_in_one")
+const {createInterface} = require("readline");
+const {mergeSortedFilesInSortedFile} = require('./myMerge')
 
-const RAM_SIZE = 500 * 1024 * 1024; //500mb
+// TODO: try to make workers after success
+
+const RAM_SIZE = 15; //500mb
+const PATH_TO_BIG_FILE = 'test.txt'
+const PATH_TO_OUTPUT_FILE = 'output.txt'
+
+// function createSortTransformStream(chunkIndex) {
+//     return new stream.Transform({
+//         transform: transformFunc
+//     });
 //
-// let readerStream = fs.createReadStream('itcont.txt', {highWaterMark: RAM_SIZE})
-// let writerStream = fs.createWriteStream('test.txt')
+//     function transformFunc(chunk, encoding, callback) {
+//         const lines = chunk.toString().split('\n');
+//         const sortedChunkStr = lines.filter(line => line.trim() !== '').sort().join('\n');
+//         const sortedChunk = Buffer.from(sortedChunkStr + '\n');
 //
-// let chunkIndex = 0;
-// const arrOfChuncks = []
-// readerStream.on('data', function (chunk) {
-//     const chunkFilePath = `temp_chunk_${chunkIndex}.txt`;
-//     arrOfChuncks.push(chunkFilePath)
-//     const sortedChunk = chunk.sort()
-//     fs.writeFileSync(chunkFilePath, sortedChunk);
-//     chunkIndex++;
-//     // console.log(chunk);
-//     // writerStream.write(chunk);
-// });
-
-const arrOfChuncks = [
-    'temp_chunk_0.txt',
-    'temp_chunk_1.txt',
-    'temp_chunk_2.txt',
-    'temp_chunk_3.txt',
-    'temp_chunk_4.txt',
-    'temp_chunk_5.txt',
-    'temp_chunk_6.txt',
-    'temp_chunk_7.txt',
-    'temp_chunk_8.txt',
-]
-mergeSortedFiles([...arrOfChuncks], 'big_file.txt')
-
-
-// pipeline(
-//     fs.createReadStream('big_file.txt'),
-//     fs.createWriteStream('test.txt'),
-//     (err) => {
-//         if (err) {
-//             console.error('Pipeline failed.', err);
-//         } else {
-//             console.log('Pipeline succeeded.');
-//         }
+//         const chunkFilePath = `temp_file_${chunkIndex}.txt`;
+//         fs.writeFileSync(chunkFilePath, sortedChunk);
+//         console.log(`${chunkIndex} temp file was created`);
+//
+//         callback();
 //     }
-// );
+// }
 
-// readerStream.on('end', function (){
-//     console.log('End writing')
-// })
+function main() {
+    const readerStream = fs.createReadStream(PATH_TO_BIG_FILE, { highWaterMark: RAM_SIZE });
+
+    //we need interface because strings can be damaged by simply splitting by highWaterMark bytes
+    const rl = createInterface({ input: readerStream });
+
+    let currentChunk = '';
+    let chunkIndex = 0;
+    const chunkFilePaths = []
+
+    rl.on('line', line => {
+        currentChunk += line + '\n';
+
+        if (currentChunk.length >= RAM_SIZE) {
+            const sortedCurrentChunk = currentChunk.split('\n')
+                .filter(line => line.trim() !== '').sort().join('\n');
+
+            const chunkFilePath = `temp_file_${chunkIndex}.txt`;
+            chunkFilePaths.push(chunkFilePath)
+            fs.writeFileSync(chunkFilePath, sortedCurrentChunk);
+            console.log(`${chunkIndex} temp file was created`);
+
+            currentChunk = '';
+            chunkIndex++;
+        }
+    });
+
+    rl.on('close', () => {
+        if (currentChunk.length > 0) {
+            const sortedCurrentChunk = currentChunk.split('\n')
+                .filter(line => line.trim() !== '').sort().join('\n');
+
+            const chunkFilePath = `temp_file_${chunkIndex}.txt`;
+            chunkFilePaths.push(chunkFilePath)
+            fs.writeFileSync(chunkFilePath, sortedCurrentChunk);
+            console.log(`${chunkIndex} temp file was created on close`);
+        }
+
+        mergeSortedFilesInSortedFile(chunkFilePaths, PATH_TO_OUTPUT_FILE)
+    });
+}
+
+main()
