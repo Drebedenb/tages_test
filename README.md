@@ -7,4 +7,5 @@ After that files will be merged and sorted in one big file.
 
 ## index.js
 
-Solution of problem on pure node js.
+Solution of problem on pure node js. For the best results in time you need to adjust RAM_SIZE inside 
+of index.js file. Solution uses workers.
