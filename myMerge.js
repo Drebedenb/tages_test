@@ -17,7 +17,6 @@ function getMinStringIndexInArray(arr) {
 }
 
 async function mergeSortedFilesInSortedFile(filePaths, outputPath) {
-    console.log(filePaths)
     const writerStream = fs.createWriteStream(outputPath, {highWaterMark: 1});
     const inputReaders = filePaths.map(file => fs.createReadStream(file, {highWaterMark: 1}));
     const readInterfaces = inputReaders.map(reader => createInterface({input: reader}));
@@ -25,6 +24,7 @@ async function mergeSortedFilesInSortedFile(filePaths, outputPath) {
 
     function getNextLine(indexOfReadInterface) {
         if (readInterfaces[indexOfReadInterface] === null) return null;
+        readInterfaces[indexOfReadInterface].removeAllListeners();
         return new Promise((resolve) => {
             let isFirstLine = true;
             readInterfaces[indexOfReadInterface].on('line', (line) => {
@@ -51,5 +51,6 @@ async function mergeSortedFilesInSortedFile(filePaths, outputPath) {
         firstStringsOfFiles[indexOfMinElement] = null
     } while (!firstStringsOfFiles.every(element => element === null))
 }
+
 
 module.exports = {mergeSortedFilesInSortedFile};
