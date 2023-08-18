@@ -3,10 +3,7 @@ const {createInterface} = require("readline");
 const {mergeSortedFilesInSortedFile} = require('./myMerge')
 const { Worker, isMainThread} = require('worker_threads');
 
-
-// TODO: try to make workers after success
-
-const RAM_SIZE = 500*1024*1024; //500mb is 500 * 1024 * 1024 bytes
+const RAM_SIZE = 100*1024*1024; //500mb is 500 * 1024 * 1024 bytes
 const PATH_TO_BIG_FILE = 'itcont.txt'
 const PATH_TO_OUTPUT_FILE = 'output.txt'
 const WORKER_SCRIPT_PATH = './worker.js'
@@ -48,14 +45,15 @@ if (isMainThread) {
                 const worker = new Worker(WORKER_SCRIPT_PATH, {
                     workerData: {chunkIndex: chunkIndex, chunkContent: currentChunk}
                 });
-                worker.on('message', (data) => {
+                worker.on('message', async (data) => {
                     console.log(`${data.index} worker finihed`)
                     console.log(`${data.index} temp file was created`)
                     chunkFilePaths.push(data.path)
                     sortedChunksAmount++;
                     if (sortedChunksAmount === chunkIndex){ //cheok for all chunks was sorted
                         console.log('All chunks was created and sorted')
-                        mergeSortedFilesInSortedFile(chunkFilePaths, PATH_TO_OUTPUT_FILE)
+                        await mergeSortedFilesInSortedFile(chunkFilePaths, PATH_TO_OUTPUT_FILE)
+                        console.log('File was sorted')
                     }
                 });
                 worker.on('error', (err) => {
